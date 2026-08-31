@@ -26,3 +26,15 @@ class TaskRead(BaseModel):
     completed: bool
     created_at: datetime
     updated_at: datetime
+
+
+class MongoTaskRead(BaseModel):
+    """Public representation of a task stored in MongoDB."""
+
+    id: str
+    title: str
+    description: str
+    importance: int
+    completed: bool
+    created_at: datetime
+    updated_at: datetime
