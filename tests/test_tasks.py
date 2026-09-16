@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 
@@ -32,3 +33,12 @@ def test_validation_and_priority_order(client: TestClient) -> None:
 
     response = client.get("/tasks")
     assert [task["title"] for task in response.json()] == ["High", "Low"]
+
+
+@pytest.mark.parametrize("field", ["title", "description", "importance", "completed"])
+def test_null_update_is_rejected(client: TestClient, field: str) -> None:
+    created = client.post("/tasks", json={"title": "Keep valid"}).json()
+    path = f"/tasks/{created['id']}"
+    before = client.get(path).json()
+    assert client.patch(path, json={field: None}).status_code == 422
+    assert client.get(path).json() == before
