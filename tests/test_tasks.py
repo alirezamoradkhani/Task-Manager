@@ -9,7 +9,6 @@ from pymongo.errors import AutoReconnect, ServerSelectionTimeoutError
 
 from app import database
 from app.main import app
-from app.tasks import router
 from app.tasks.repository import TaskRepository
 
 
@@ -119,8 +118,8 @@ def test_database_connection_failure_returns_503(monkeypatch, error, method):
     def fail(*args, **kwargs):
         raise error("private connection details")
 
-    service_method = {"get": "list", "post": "create", "patch": "update", "delete": "delete"}[method]
-    monkeypatch.setattr(router.service.repository, service_method, fail)
+    repository_method = {"get": "list", "post": "create", "patch": "update", "delete": "delete"}[method]
+    monkeypatch.setattr(TaskRepository, repository_method, fail)
     path = "/tasks"
     kwargs = {}
     if method == "post":

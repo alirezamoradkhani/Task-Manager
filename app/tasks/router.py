@@ -1,13 +1,27 @@
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
-from app.tasks.service import TaskNotFoundError, TaskService
-from app.tasks.schema import TaskRead, TaskCreate, TaskUpdate
+from app.tasks.exceptions import TaskNotFoundError
+from app.tasks.repository import TaskRepository
+from app.tasks.schema import TaskCreate, TaskRead, TaskUpdate
+from app.tasks.use_cases import (
+    CreateTaskUseCase,
+    DeleteTaskUseCase,
+    GetTaskUseCase,
+    ListTasksUseCase,
+    UpdateTaskUseCase,
+)
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
-service = TaskService()
+
+
+def get_task_repository() -> TaskRepository:
+    return TaskRepository()
+
+
+RepositoryDependency = Annotated[TaskRepository, Depends(get_task_repository)]
 
 
 def not_found() -> HTTPException:
@@ -15,38 +29,39 @@ def not_found() -> HTTPException:
 
 
 @router.post("", response_model=TaskRead, status_code=status.HTTP_201_CREATED)
-def create_task(data: TaskCreate) -> TaskRead:
-    return service.create(data)
+def create_task(data: TaskCreate, repository: RepositoryDependency) -> TaskRead:
+    return CreateTaskUseCase(repository).execute(data)
 
 
 @router.get("", response_model=list[TaskRead])
 def list_tasks(
+    repository: RepositoryDependency,
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[TaskRead]:
-    return service.list(offset=offset, limit=limit)
+    return ListTasksUseCase(repository).execute(offset=offset, limit=limit)
 
 
 @router.get("/{task_id}", response_model=TaskRead)
-def get_task(task_id: str) -> TaskRead:
+def get_task(task_id: str, repository: RepositoryDependency) -> TaskRead:
     try:
-        return service.get(task_id)
+        return GetTaskUseCase(repository).execute(task_id)
     except TaskNotFoundError as error:
         raise not_found() from error
 
 
 @router.patch("/{task_id}", response_model=TaskRead)
-def update_task(task_id: str, data: TaskUpdate) -> TaskRead:
+def update_task(task_id: str, data: TaskUpdate, repository: RepositoryDependency) -> TaskRead:
     try:
-        return service.update(task_id, data)
+        return UpdateTaskUseCase(repository).execute(task_id, data)
     except TaskNotFoundError as error:
         raise not_found() from error
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(task_id: str) -> Response:
+def delete_task(task_id: str, repository: RepositoryDependency) -> Response:
     try:
-        service.delete(task_id)
+        DeleteTaskUseCase(repository).execute(task_id)
     except TaskNotFoundError as error:
         raise not_found() from error
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -10,7 +10,6 @@ from app.main import app
 from app import database
 from app.tasks import router
 from app.tasks.repository import TaskRepository
-from app.tasks.service import TaskService
 
 
 @pytest.fixture
@@ -33,7 +32,10 @@ def mongo_collection():
 @pytest.fixture
 def client(mongo_collection, monkeypatch):
     repository = TaskRepository(collection=mongo_collection)
-    monkeypatch.setattr(router, "service", TaskService(repository))
+    app.dependency_overrides[router.get_task_repository] = lambda: repository
     monkeypatch.setattr(database, "client", mongo_collection.database.client)
-    with TestClient(app) as test_client:
-        yield test_client
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.pop(router.get_task_repository, None)
