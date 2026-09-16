@@ -11,12 +11,21 @@ app/
   database.py          # MongoDB client and tasks collection
   tasks/
     router.py          # HTTP endpoints at /tasks
-    service.py         # Application rules and not-found handling
+    exceptions.py      # Task-specific application errors
+    use_cases/         # One operation per use case, each with execute()
+      create_task_usecase.py
+      list_tasks_usecase.py
+      get_task_usecase.py
+      update_task_usecase.py
+      delete_task_usecase.py
     repository.py      # MongoDB queries and document writes
     schema.py          # Request validation and response models
 ```
 
-A request follows `router → service → repository → MongoDB`. The response
+A request follows `router → use case → repository → MongoDB`. The router
+receives a repository through FastAPI dependency injection and passes it to
+the relevant use case. Use cases handle one task operation each, including
+not-found checks, without depending on HTTP. The response
 converts MongoDB documents into the `TaskRead` schema. Task IDs are MongoDB
 `ObjectId` values represented as strings in the API.
 
