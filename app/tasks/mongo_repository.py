@@ -13,7 +13,7 @@ class MongoTaskRepository:
     """MongoDB persistence operations for tasks."""
 
     def __init__(self, collection: Collection[Any] | None = None) -> None:
-        self.collection = collection or tasks_collection
+        self.collection = collection if collection is not None else tasks_collection
 
     @staticmethod
     def _object_id(task_id: str) -> ObjectId | None:
