@@ -78,6 +78,10 @@ uvicorn app.main:app --reload
 MongoDB task IDs are MongoDB `ObjectId` values represented as strings in API
 responses. PostgreSQL task IDs remain integers.
 
+For `PATCH` requests, omit fields to keep their existing values. Explicit `null`
+values are rejected with HTTP 422. MongoDB connection failures return HTTP 503;
+`/health/mongodb` also returns HTTP 503 when MongoDB is unavailable.
+
 Example MongoDB request:
 
 ```bash
@@ -101,3 +105,20 @@ curl http://localhost:8000/health/mongodb
 ```bash
 pytest
 ```
+
+MongoDB integration tests use a real server and are skipped unless
+`TEST_MONGODB_URL` is set. Each test creates a uniquely named temporary database
+and removes it afterwards. The test user needs permission to create and drop
+these databases. Use a dedicated test server, for example:
+
+```bash
+docker run -d --rm --name task-manager-mongo-test \
+  -p 127.0.0.1:27028:27017 mongo:8
+trap 'docker stop task-manager-mongo-test' EXIT
+TEST_MONGODB_URL=mongodb://127.0.0.1:27028 python -m pytest
+docker stop task-manager-mongo-test
+trap - EXIT
+```
+
+Run the block in Bash. The container is stopped and removed after testing;
+the trap also stops it if the shell exits early.
