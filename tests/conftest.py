@@ -1,33 +1,39 @@
 import os
+from uuid import uuid4
 
-os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
+os.environ["MONGODB_URL"] = os.getenv("TEST_MONGODB_URL", "mongodb://localhost:27017")
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
-
-from app.database import Base, get_db
+from pymongo import MongoClient
 from app.main import app
+from app import database
+from app.tasks import router
+from app.tasks.repository import TaskRepository
+from app.tasks.service import TaskService
 
 
 @pytest.fixture
-def client() -> TestClient:
-    engine = create_engine(
-        "sqlite+pysqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    testing_session = sessionmaker(bind=engine, expire_on_commit=False)
-    Base.metadata.create_all(engine)
+def mongo_collection():
+    uri = os.getenv("TEST_MONGODB_URL")
+    if not uri:
+        pytest.skip("Set TEST_MONGODB_URL to run tests against a real MongoDB")
+    mongo = MongoClient(uri, serverSelectionTimeoutMS=5000, tz_aware=True)
+    database_name = f"task_manager_test_{uuid4().hex}"
+    try:
+        mongo.admin.command("ping")
+        yield mongo[database_name]["tasks"]
+    finally:
+        try:
+            mongo.drop_database(database_name)
+        finally:
+            mongo.close()
 
-    def override_get_db():
-        with testing_session() as session:
-            yield session
 
-    app.dependency_overrides[get_db] = override_get_db
+@pytest.fixture
+def client(mongo_collection, monkeypatch):
+    repository = TaskRepository(collection=mongo_collection)
+    monkeypatch.setattr(router, "service", TaskService(repository))
+    monkeypatch.setattr(database, "client", mongo_collection.database.client)
     with TestClient(app) as test_client:
         yield test_client
-    app.dependency_overrides.clear()
-    Base.metadata.drop_all(engine)

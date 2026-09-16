@@ -1,6 +1,4 @@
-alembic>=1.14,<2
 fastapi>=0.115,<1
-psycopg[binary]>=3.2,<4
+pymongo>=4.9,<5
 python-dotenv>=1,<2
-SQLAlchemy>=2,<3
 uvicorn[standard]>=0.34,<1
