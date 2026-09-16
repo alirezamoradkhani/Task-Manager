@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class TaskCreate(BaseModel):
@@ -24,18 +24,6 @@ class TaskUpdate(BaseModel):
 
 
 class TaskRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    title: str
-    description: str
-    importance: int
-    completed: bool
-    created_at: datetime
-    updated_at: datetime
-
-
-class MongoTaskRead(BaseModel):
     """Public representation of a task stored in MongoDB."""
 
     id: str

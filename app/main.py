@@ -3,14 +3,12 @@ from fastapi.responses import JSONResponse
 from pymongo.errors import ConnectionFailure
 
 from app.config import settings
-from app.mongo_database import mongodb_is_healthy
-from app.tasks.mongo_router import router as mongo_tasks_router
+from app.database import mongodb_is_healthy
 from app.tasks.router import router as tasks_router
 
 
 app = FastAPI(title=settings.app_name, version="1.0.0")
 app.include_router(tasks_router)
-app.include_router(mongo_tasks_router)
 
 
 @app.exception_handler(ConnectionFailure)

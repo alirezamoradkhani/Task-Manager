@@ -1,37 +1,82 @@
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from datetime import datetime, timezone
+from typing import Any
 
-from app.tasks.model import Task
-from app.tasks.schema import TaskCreate, TaskUpdate
+from bson import ObjectId
+from pymongo.collection import Collection
+from pymongo.results import InsertOneResult
+
+from app.database import tasks_collection
+from app.tasks.schema import TaskRead, TaskCreate, TaskUpdate
 
 
 class TaskRepository:
-    def list(self, db: Session, *, offset: int, limit: int) -> list[Task]:
-        statement = (
-            select(Task)
-            .order_by(Task.importance.desc(), Task.created_at.desc())
-            .offset(offset)
+    """MongoDB persistence operations for tasks."""
+
+    def __init__(self, collection: Collection[Any] | None = None) -> None:
+        self.collection = collection if collection is not None else tasks_collection
+
+    @staticmethod
+    def _object_id(task_id: str) -> ObjectId | None:
+        if not ObjectId.is_valid(task_id):
+            return None
+        return ObjectId(task_id)
+
+    @staticmethod
+    def _to_read(document: dict[str, Any]) -> TaskRead:
+        return TaskRead(
+            id=str(document["_id"]),
+            title=document["title"],
+            description=document["description"],
+            importance=document["importance"],
+            completed=document["completed"],
+            created_at=document["created_at"],
+            updated_at=document["updated_at"],
+        )
+
+    def list(self, *, offset: int, limit: int) -> list[TaskRead]:
+        cursor = (
+            self.collection.find()
+            .sort([("importance", -1), ("created_at", -1)])
+            .skip(offset)
             .limit(limit)
         )
-        return list(db.scalars(statement))
+        return [self._to_read(document) for document in cursor]
 
-    def get(self, db: Session, task_id: int) -> Task | None:
-        return db.get(Task, task_id)
+    def get(self, task_id: str) -> TaskRead | None:
+        object_id = self._object_id(task_id)
+        if object_id is None:
+            return None
+        document = self.collection.find_one({"_id": object_id})
+        return self._to_read(document) if document else None
 
-    def create(self, db: Session, data: TaskCreate) -> Task:
-        task = Task(**data.model_dump())
-        db.add(task)
-        db.commit()
-        db.refresh(task)
-        return task
+    def create(self, data: TaskCreate) -> TaskRead:
+        now = datetime.now(timezone.utc)
+        document = {
+            **data.model_dump(),
+            "completed": False,
+            "created_at": now,
+            "updated_at": now,
+        }
+        result: InsertOneResult = self.collection.insert_one(document)
+        document["_id"] = result.inserted_id
+        return self._to_read(document)
 
-    def update(self, db: Session, task: Task, data: TaskUpdate) -> Task:
-        for field, value in data.model_dump(exclude_unset=True).items():
-            setattr(task, field, value)
-        db.commit()
-        db.refresh(task)
-        return task
+    def update(self, task_id: str, data: TaskUpdate) -> TaskRead | None:
+        object_id = self._object_id(task_id)
+        if object_id is None:
+            return None
 
-    def delete(self, db: Session, task: Task) -> None:
-        db.delete(task)
-        db.commit()
+        updates = data.model_dump(exclude_unset=True)
+        if updates:
+            updates["updated_at"] = datetime.now(timezone.utc)
+            self.collection.update_one({"_id": object_id}, {"$set": updates})
+
+        document = self.collection.find_one({"_id": object_id})
+        return self._to_read(document) if document else None
+
+    def delete(self, task_id: str) -> bool:
+        object_id = self._object_id(task_id)
+        if object_id is None:
+            return False
+        result = self.collection.delete_one({"_id": object_id})
+        return result.deleted_count == 1
