@@ -1,13 +1,13 @@
-from app.tasks.use_cases.create_task_usecase import CreateTaskUseCase
-from app.tasks.use_cases.delete_task_usecase import DeleteTaskUseCase
-from app.tasks.use_cases.get_task_usecase import GetTaskUseCase
-from app.tasks.use_cases.list_tasks_usecase import ListTasksUseCase
-from app.tasks.use_cases.update_task_usecase import UpdateTaskUseCase
+from app.tasks.use_cases.create_task_usecase import create_task
+from app.tasks.use_cases.delete_task_usecase import delete_task
+from app.tasks.use_cases.get_task_usecase import get_task
+from app.tasks.use_cases.list_tasks_usecase import list_tasks
+from app.tasks.use_cases.update_task_usecase import update_task
 
 __all__ = [
-    "CreateTaskUseCase",
-    "DeleteTaskUseCase",
-    "GetTaskUseCase",
-    "ListTasksUseCase",
-    "UpdateTaskUseCase",
+    "create_task",
+    "delete_task",
+    "get_task",
+    "list_tasks",
+    "update_task",
 ]

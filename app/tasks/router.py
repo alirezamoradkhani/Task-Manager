@@ -6,11 +6,11 @@ from app.tasks.exceptions import TaskNotFoundError
 from app.tasks.repository import TaskRepository
 from app.tasks.schema import TaskCreate, TaskRead, TaskUpdate
 from app.tasks.use_cases import (
-    CreateTaskUseCase,
-    DeleteTaskUseCase,
-    GetTaskUseCase,
-    ListTasksUseCase,
-    UpdateTaskUseCase,
+    create_task as create_task_usecase,
+    delete_task as delete_task_usecase,
+    get_task as get_task_usecase,
+    list_tasks as list_tasks_usecase,
+    update_task as update_task_usecase,
 )
 
 
@@ -30,7 +30,7 @@ def not_found() -> HTTPException:
 
 @router.post("", response_model=TaskRead, status_code=status.HTTP_201_CREATED)
 def create_task(data: TaskCreate, repository: RepositoryDependency) -> TaskRead:
-    return CreateTaskUseCase(repository).execute(data)
+    return create_task_usecase(repository, data)
 
 
 @router.get("", response_model=list[TaskRead])
@@ -39,13 +39,13 @@ def list_tasks(
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[TaskRead]:
-    return ListTasksUseCase(repository).execute(offset=offset, limit=limit)
+    return list_tasks_usecase(repository, offset=offset, limit=limit)
 
 
 @router.get("/{task_id}", response_model=TaskRead)
 def get_task(task_id: str, repository: RepositoryDependency) -> TaskRead:
     try:
-        return GetTaskUseCase(repository).execute(task_id)
+        return get_task_usecase(repository, task_id)
     except TaskNotFoundError as error:
         raise not_found() from error
 
@@ -53,7 +53,7 @@ def get_task(task_id: str, repository: RepositoryDependency) -> TaskRead:
 @router.patch("/{task_id}", response_model=TaskRead)
 def update_task(task_id: str, data: TaskUpdate, repository: RepositoryDependency) -> TaskRead:
     try:
-        return UpdateTaskUseCase(repository).execute(task_id, data)
+        return update_task_usecase(repository, task_id, data)
     except TaskNotFoundError as error:
         raise not_found() from error
 
@@ -61,7 +61,7 @@ def update_task(task_id: str, data: TaskUpdate, repository: RepositoryDependency
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(task_id: str, repository: RepositoryDependency) -> Response:
     try:
-        DeleteTaskUseCase(repository).execute(task_id)
+        delete_task_usecase(repository, task_id)
     except TaskNotFoundError as error:
         raise not_found() from error
     return Response(status_code=status.HTTP_204_NO_CONTENT)
